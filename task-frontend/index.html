@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager Pro</title>
+    <style>
+        /* BASE STYLES */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 0; }
+        header { background-color: #2c3e50; color: white; padding: 1.5rem; text-align: center; position: relative; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        button { cursor: pointer; transition: all 0.2s ease; border: none; font-weight: bold; }
+        
+        /* AUTH SECTION */
+        #authSection { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 4rem auto; text-align: center; }
+        .auth-input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        .auth-btn { background-color: #3498db; color: white; padding: 10px 20px; border-radius: 5px; width: 100%; margin-top: 10px; }
+        .auth-btn:hover { background-color: #2980b9; }
+        .toggle-auth { color: #3498db; cursor: pointer; font-size: 0.9rem; margin-top: 15px; display: inline-block; }
+        
+        /* APP SECTION */
+        #appSection { display: none; }
+        #logoutBtn { position: absolute; right: 20px; top: 20px; background: #e74c3c; color: white; padding: 8px 15px; border-radius: 5px; }
+        #logoutBtn:hover { background: #c0392b; }
+        
+        /* TASK FORM */
+        .task-form { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 2rem; display: flex; flex-direction: column; gap: 10px; }
+        .task-form input, .task-form textarea, .task-form select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-family: inherit; }
+        .task-form button { background-color: #2ecc71; color: white; padding: 10px; border-radius: 5px; }
+        .task-form button:hover { background-color: #27ae60; }
+
+        /* CONTROLS (FILTER & SORT) */
+        .controls { display: flex; justify-content: space-between; margin-bottom: 1rem; gap: 10px; flex-wrap: wrap; }
+        .controls select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; outline: none; }
+
+        /* TASK LIST */
+        .task-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 1rem; border-left: 5px solid #ccc; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;}
+        .task-card.Pending { border-left-color: #f1c40f; }
+        .task-card.InProgress { border-left-color: #3498db; }
+        .task-card.Completed { border-left-color: #2ecc71; opacity: 0.8; }
+        
+        .task-details h3 { margin: 0 0 5px 0; }
+        .task-details p { margin: 0 0 10px 0; color: #666; font-size: 0.95rem; }
+        .task-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; background: #eee; }
+        
+        .task-actions { display: flex; gap: 5px; }
+        .task-actions button { padding: 6px 10px; border-radius: 5px; color: white; }
+        .btn-edit { background: #f39c12; } .btn-edit:hover { background: #d68910; }
+        .btn-delete { background: #e74c3c; } .btn-delete:hover { background: #c0392b; }
+
+        #errorMessage { color: #e74c3c; font-weight: bold; display: none; margin-bottom: 10px; }
+
+        @media (max-width: 600px) {
+            .task-card { flex-direction: column; }
+            .task-actions { width: 100%; justify-content: flex-end; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Task Manager Pro</h1>
+        <button id="logoutBtn" style="display: none;" onclick="logout()">Logout</button>
+    </header>
+
+    <!-- AUTHENTICATION UI -->
+    <div id="authSection">
+        <h2 id="authTitle">Login</h2>
+        <p id="errorMessage"></p>
+        <input type="text" id="username" class="auth-input" placeholder="Username">
+        <input type="password" id="password" class="auth-input" placeholder="Password">
+        <button class="auth-btn" id="authSubmitBtn" onclick="handleAuth()">Login</button>
+        <span class="toggle-auth" onclick="toggleAuthMode()">Need an account? Register here.</span>
+    </div>
+
+    <!-- MAIN APP UI -->
+    <div id="appSection" class="container">
+        
+        <!-- Create Task Form -->
+        <div class="task-form">
+            <h3>Add a New Task</h3>
+            <input type="text" id="taskTitle" placeholder="Task Title (Required)">
+            <textarea id="taskDesc" rows="3" placeholder="Task Description"></textarea>
+            <select id="taskStatus">
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+            </select>
+            <button onclick="saveTask()" id="saveTaskBtn">Create Task</button>
+        </div>
+
+        <!-- Filter and Sort Controls -->
+        <div class="controls">
+            <div>
+                <label>Filter: </label>
+                <select id="filterSelect" onchange="renderTasks()">
+                    <option value="All">All Tasks</option>
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <div>
+                <label>Sort by: </label>
+                <select id="sortSelect" onchange="renderTasks()">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Task List Container -->
+        <div id="taskList"></div>
+
+    </div>
+
+    <script>
+        const SERVER_URL = "http://localhost:5000/api";
+        let isLoginMode = true;
+        let editingTaskId = null;
+        let allTasks = []; // Store tasks locally for fast filtering/sorting
+
+        // --- AUTHENTICATION LOGIC ---
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('authTitle').innerText = isLoginMode ? "Login" : "Register";
+            document.getElementById('authSubmitBtn').innerText = isLoginMode ? "Login" : "Register";
+            document.querySelector('.toggle-auth').innerText = isLoginMode ? "Need an account? Register here." : "Already have an account? Login.";
+            document.getElementById('errorMessage').style.display = "none";
+        }
+
+        async function handleAuth() {
+            const usernameVal = document.getElementById('username').value;
+            const passwordVal = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMessage');
+
+            if (!usernameVal || !passwordVal) {
+                errorMsg.innerText = "Please fill all fields!";
+                errorMsg.style.display = "block";
+                return;
+            }
+
+            const endpoint = isLoginMode ? "/login" : "/register";
+            
+            try {
+                const response = await fetch(SERVER_URL + endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: usernameVal, password: passwordVal })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (isLoginMode) {
+                        localStorage.setItem('taskToken', data.token);
+                        checkAuthState();
+                    } else {
+                        alert("Registration successful! Please login.");
+                        toggleAuthMode();
+                    }
+                } else {
+                    errorMsg.innerText = data.message || "Authentication failed.";
+                    errorMsg.style.display = "block";
+                }
+            } catch (err) {
+                errorMsg.innerText = "Server error. Make sure backend is running.";
+                errorMsg.style.display = "block";
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('taskToken');
+            checkAuthState();
+        }
+
+        function checkAuthState() {
+            const token = localStorage.getItem('taskToken');
+            if (token) {
+                document.getElementById('authSection').style.display = "none";
+                document.getElementById('appSection').style.display = "block";
+                document.getElementById('logoutBtn').style.display = "inline-block";
+                fetchTasks(); // Load tasks immediately
+            } else {
+                document.getElementById('authSection').style.display = "block";
+                document.getElementById('appSection').style.display = "none";
+                document.getElementById('logoutBtn').style.display = "none";
+            }
+        }
+
+        // --- TASK CRUD LOGIC ---
+        async function fetchTasks() {
+            const token = localStorage.getItem('taskToken');
+            try {
+                const response = await fetch(SERVER_URL + "/tasks", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    allTasks = await response.json();
+                    renderTasks();
+                } else if(response.status === 401 || response.status === 403) {
+                    logout(); // Token expired or invalid
+                }
+            } catch (err) {
+                console.error("Failed to fetch tasks");
+            }
+        }
+
+        async function saveTask() {
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDesc').value;
+            const status = document.getElementById('taskStatus').value;
+            const token = localStorage.getItem('taskToken');
+
+            if (!title) return alert("Task title is required!");
+
+            const method = editingTaskId ? "PUT" : "POST";
+            const endpoint = editingTaskId ? `/tasks/${editingTaskId}` : "/tasks";
+
+            try {
+                const response = await fetch(SERVER_URL + endpoint, {
+                    method: method,
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ title, description, status })
+                });
+
+                if (response.ok) {
+                    // Reset Form
+                    document.getElementById('taskTitle').value = "";
+                    document.getElementById('taskDesc').value = "";
+                    document.getElementById('taskStatus').value = "Pending";
+                    document.getElementById('saveTaskBtn').innerText = "Create Task";
+                    editingTaskId = null;
+                    fetchTasks(); // Reload the list
+                }
+            } catch (err) {
+                alert("Failed to save task.");
+            }
+        }
+
+        function editTask(id) {
+            const task = allTasks.find(t => t._id === id);
+            document.getElementById('taskTitle').value = task.title;
+            document.getElementById('taskDesc').value = task.description;
+            document.getElementById('taskStatus').value = task.status;
+            document.getElementById('saveTaskBtn').innerText = "Update Task";
+            editingTaskId = id;
+            window.scrollTo(0, 0); // Scroll to top
+        }
+
+        async function deleteTask(id) {
+            if (!confirm("Delete this task?")) return;
+            const token = localStorage.getItem('taskToken');
+            
+            try {
+                const response = await fetch(SERVER_URL + `/tasks/${id}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (response.ok) fetchTasks();
+            } catch (err) {
+                alert("Failed to delete task.");
+            }
+        }
+
+        // --- UI & FILTERING LOGIC ---
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            const filterValue = document.getElementById('filterSelect').value;
+            const sortValue = document.getElementById('sortSelect').value;
+
+            // 1. Apply Filter
+            let filteredTasks = allTasks;
+            if (filterValue !== "All") {
+                filteredTasks = allTasks.filter(task => task.status === filterValue);
+            }
+
+            // 2. Apply Sort
+            filteredTasks.sort((a, b) => {
+                const dateA = new Date(a.createdAt);
+                const dateB = new Date(b.createdAt);
+                return sortValue === "newest" ? dateB - dateA : dateA - dateB;
+            });
+
+            // 3. Render HTML
+            taskList.innerHTML = "";
+            if (filteredTasks.length === 0) {
+                taskList.innerHTML = "<p style='text-align:center; color:#888;'>No tasks found.</p>";
+                return;
+            }
+
+            filteredTasks.forEach(task => {
+                // Remove spaces from status for CSS classes (e.g. "In Progress" -> "InProgress")
+                const statusClass = task.status.replace(/\s+/g, ''); 
+                
+                taskList.innerHTML += `
+                    <div class="task-card ${statusClass}">
+                        <div class="task-details">
+                            <h3>${task.title}</h3>
+                            <p>${task.description || "No description provided."}</p>
+                            <span class="task-badge">${task.status}</span>
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn-edit" onclick="editTask('${task._id}')">Edit</button>
+                            <button class="btn-delete" onclick="deleteTask('${task._id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Initialize App
+        checkAuthState();
+    </script>
+</body>
+</html>
